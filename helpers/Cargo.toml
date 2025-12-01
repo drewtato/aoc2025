@@ -1,0 +1,19 @@
+[package]
+edition = "2024"
+name = "helpers"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arrayvec.workspace = true
+atoi.workspace = true
+bstr.workspace = true
+bytemuck.workspace = true
+itertools.workspace = true
+num-integer.workspace = true
+primal.workspace = true
+rand.workspace = true
+rand_xorshift.workspace = true
+regex.workspace = true
+rustc-hash.workspace = true
