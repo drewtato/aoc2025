@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use helpers::*;
 
 fn main() {
@@ -27,23 +25,20 @@ impl solver_interface::ChildSolver for Solver {
     }
 }
 
-fn turn_batteries_on(mut row: &[u8], count: usize) -> u64 {
-    let mut joltage = 0;
-
-    for c in (0..count).rev() {
-        let (i, &max) = row[0..row.len() - c]
-            .iter()
-            .enumerate()
-            .rev()
-            .max_by_key(|&(_, &n)| n)
-            .unwrap();
-
-        joltage *= 10;
-        joltage += max as u64;
-        row = &row[i + 1..];
-    }
-
-    joltage
+fn turn_batteries_on(row: &[u8], count: usize) -> u64 {
+    (0..count)
+        .rev()
+        .scan(row, |row, c| {
+            let (i, &max) = row[0..row.len() - c]
+                .iter()
+                .enumerate()
+                .rev()
+                .max_by_key(|&(_, &n)| n)
+                .unwrap();
+            *row = &row[i + 1..];
+            Some(max)
+        })
+        .fold(0, |acc, joltage| acc * 10 + joltage as u64)
 }
 
 fn each(input: &[u8], mut f: impl FnMut(&[u8])) {
