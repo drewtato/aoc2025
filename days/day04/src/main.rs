@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use helpers::*;
 
 fn main() {
@@ -38,7 +40,9 @@ impl solver_interface::ChildSolver for Solver {
         let height = grid.len();
         let mut accessible = Vec::<[usize; 2]>::new();
         let mut removed = 0;
+
         loop {
+            // print_grid(&grid);
             for y in 0..height {
                 for x in 0..width {
                     if !*grid_get(&grid, [y, x]).unwrap() {
@@ -64,6 +68,7 @@ impl solver_interface::ChildSolver for Solver {
                 *grid_get_mut(&mut grid, c).unwrap() = false;
             }
         }
+
         removed
     }
 }
@@ -110,4 +115,18 @@ fn grid_get_mut<T>(grid: &mut [Vec<T>], coord: [usize; 2]) -> Option<&mut T> {
     let row = grid.get_mut(coord[0])?;
     let b = row.get_mut(coord[1])?;
     Some(b)
+}
+
+#[allow(dead_code)]
+fn print_grid(grid: &[Vec<bool>]) {
+    let mut stderr = std::io::BufWriter::new(std::io::stderr().lock());
+    for row in grid {
+        for &c in row {
+            write!(stderr, "{}", if c { '@' } else { ' ' }).unwrap();
+        }
+        writeln!(stderr).unwrap();
+    }
+    writeln!(stderr).unwrap();
+    stderr.flush().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(500));
 }
