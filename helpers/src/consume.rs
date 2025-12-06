@@ -183,6 +183,7 @@ impl<'a> Consume<'a> {
         start
     }
 
+    /// If the slice is not empty, consumes one byte.
     pub fn consume_byte(&mut self) -> Option<u8> {
         let mut slice = self.slice();
         let byte = slice.split_off_first().copied();

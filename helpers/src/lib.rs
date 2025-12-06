@@ -16,6 +16,7 @@ pub use std::iter::{
 };
 pub use std::mem::{replace, swap, take};
 
+pub use arrayvec::{self, ArrayVec};
 pub use atoi::{self, ascii_to_digit, atoi as parse_ascii};
 pub use bstr::{self, BStr, BString, ByteSlice, ByteVec};
 pub use itertools::Itertools;
