@@ -11,8 +11,8 @@ pub use std::convert::identity;
 pub use std::fmt::{Debug, Display};
 pub use std::iter::{
     empty as empty_iter, from_coroutine as coroutine_iter, from_fn as fn_iter, once as once_iter,
-    once_with as once_with_iter, repeat as repeat_iter, repeat_with as repeat_with_iter,
-    successors,
+    once_with as once_with_iter, repeat as repeat_iter, repeat_n as repeat_n_iter,
+    repeat_with as repeat_with_iter, successors,
 };
 pub use std::mem::{replace, swap, take};
 
