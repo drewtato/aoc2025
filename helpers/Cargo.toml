@@ -12,6 +12,7 @@ bstr.workspace = true
 bytemuck.workspace = true
 itertools.workspace = true
 num-integer.workspace = true
+petgraph.workspace = true
 primal.workspace = true
 rand.workspace = true
 rand_xorshift.workspace = true

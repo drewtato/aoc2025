@@ -21,6 +21,7 @@ pub use atoi::{self, ascii_to_digit, atoi as parse_ascii};
 pub use bstr::{self, BStr, BString, ByteSlice, ByteVec};
 pub use itertools::Itertools;
 pub use num_integer::*;
+pub use petgraph;
 pub use primal::*;
 pub use rand::{self, Rng};
 pub use regex::bytes::Regex;
