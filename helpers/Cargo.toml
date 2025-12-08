@@ -18,3 +18,4 @@ rand.workspace = true
 rand_xorshift.workspace = true
 regex.workspace = true
 rustc-hash.workspace = true
+binary-heap-plus.workspace = true

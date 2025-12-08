@@ -8,26 +8,25 @@ fn main() {
 struct Solver;
 
 impl solver_interface::ChildSolver for Solver {
-    fn part_one(input: &[u8], debug: u8) -> impl Display + 'static {
+    fn part_one(input: &[u8], _debug: u8) -> impl Display + 'static {
         let FindPairs {
-            pairs,
+            mut pairs,
             mut sets,
-            boxes: _boxes,
+            boxes: _,
         } = find_pairs(input);
 
-        let target_connections = match debug {
-            0 => 1000,
-            1 => 10,
-            2 => 3,
-            _ => panic!("unknown debug flag"),
+        let target_connections = match pairs.len() {
+            0..1000 => 10,
+            _ => 1000,
         };
+        pairs.select_nth_unstable_by_key(target_connections, |&(d, ..)| d);
 
         for &(_d, i, j) in pairs.iter().take(target_connections) {
             sets.union(i, j);
         }
 
         let f: Vec<usize> = frequencies(sets);
-        f[..3].iter().product::<usize>()
+        f.into_iter().take(3).product::<usize>()
     }
 
     fn part_two(input: &[u8], _debug: u8) -> impl Display + 'static {
@@ -38,18 +37,21 @@ impl solver_interface::ChildSolver for Solver {
         } = find_pairs(input);
 
         let mut connections = 0;
+        let target_connections = boxes.len() - 1;
+        let pairs = BinaryHeap::from_vec_cmp(pairs, binary_heap_plus::MinComparator);
 
-        for &(_d, i, j) in pairs.iter() {
+        for (_, i, j) in pairs.into_iter_sorted() {
             if sets.union(i, j) {
                 connections += 1;
-                if connections == boxes.len() - 1 {
+                if connections == target_connections {
                     let b1 = boxes[i];
                     let b2 = boxes[j];
                     return b1[2] as u64 * b2[2] as u64;
                 }
             }
         }
-        panic!("ran out of pairs");
+
+        panic!("ran out of pairs!");
     }
 }
 
@@ -70,7 +72,6 @@ fn find_pairs(input: &[u8]) -> FindPairs {
         }
     }
 
-    pairs.sort_unstable_by_key(|&(d, ..)| d);
     let sets = petgraph::unionfind::UnionFind::new(boxes.len());
     FindPairs { pairs, sets, boxes }
 }

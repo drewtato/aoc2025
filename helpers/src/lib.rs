@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 pub use std::array::{from_fn as from_fn_array, try_from_fn};
 pub use std::cmp::Reverse;
-pub use std::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
+pub use std::collections::{BTreeMap, BTreeSet, LinkedList, VecDeque};
 pub use std::convert::identity;
 pub use std::fmt::{Debug, Display};
 pub use std::iter::{
@@ -18,6 +18,7 @@ pub use std::mem::{replace, swap, take};
 
 pub use arrayvec::{self, ArrayVec};
 pub use atoi::{self, ascii_to_digit, atoi as parse_ascii};
+pub use binary_heap_plus::{self, BinaryHeap};
 pub use bstr::{self, BStr, BString, ByteSlice, ByteVec};
 pub use itertools::Itertools;
 pub use num_integer::*;
