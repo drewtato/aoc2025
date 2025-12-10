@@ -1,8 +1,5 @@
-#![allow(unused)]
-
 use std::collections::HashSet;
 use std::io::{Write, stderr};
-use std::ops::ControlFlow;
 
 use helpers::*;
 
@@ -92,7 +89,7 @@ impl solver_interface::ChildSolver for Solver {
 
         eprintln!("sort pairs");
 
-        let mut pairs: BinaryHeap<_> = tile_pairs(&tiles)
+        let pairs: BinaryHeap<_> = tile_pairs(&tiles)
             .map(|[a, b]| {
                 let area = area(a, b);
                 (area, a, b)
@@ -101,7 +98,7 @@ impl solver_interface::ChildSolver for Solver {
 
         eprintln!("find best rectangle | rectangles: {}", pairs.len());
 
-        'a: for (i, (area, a, b)) in pairs.into_iter_sorted().enumerate() {
+        for (i, (area, a, b)) in pairs.into_iter_sorted().enumerate() {
             if i.is_multiple_of(1000) {
                 eprintln!("{i}");
             }
@@ -115,6 +112,7 @@ impl solver_interface::ChildSolver for Solver {
     }
 }
 
+#[allow(dead_code)]
 fn print_points<const N: usize>(pairs: [(&HashSet<[u32; 2]>, char); N]) {
     let (min_x, max_x) = pairs
         .into_iter()
