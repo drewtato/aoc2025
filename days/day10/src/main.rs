@@ -89,35 +89,45 @@ struct Machine {
 
 type StateInt = u16;
 
+struct State {
+    lights: StateInt,
+    used: u8,
+}
+impl State {
+    fn new(lights: StateInt, used: u8) -> Self {
+        Self { lights, used }
+    }
+}
+
 impl Machine {
     fn enable_machine<'a>(
         self,
-        mut states: &'a mut Vec<(StateInt, u8)>,
-        mut states_tmp: &'a mut Vec<(StateInt, u8)>,
+        mut states: &'a mut Vec<State>,
+        mut states_tmp: &'a mut Vec<State>,
     ) -> usize {
         states.clear();
         states_tmp.clear();
-        states.push((self.lights, 0));
+        states.push(State::new(self.lights, 0));
         // eprintln!("{self:?}");
         // return 0;
         for presses in 1.. {
-            for &(state, used) in &*states {
+            for &State { lights, used } in &*states {
                 for (i, &button) in self.buttons.iter().enumerate() {
                     if i as u8 == used {
                         continue;
                     }
-                    let new_state = press_button(state, button);
+                    let new_lights = press_button(lights, button);
                     // eprintln!(
                     //     "apply {:?} to {:?} = {:?}",
                     //     StatePrinter(button),
-                    //     StatePrinter(state),
-                    //     StatePrinter(new_state),
+                    //     StatePrinter(lights),
+                    //     StatePrinter(new_lights),
                     // );
-                    if new_state == 0 {
+                    if new_lights == 0 {
                         // eprintln!("  {presses}");
                         return presses;
                     }
-                    states_tmp.push((new_state, i as u8));
+                    states_tmp.push(State::new(new_lights, i as u8));
                 }
             }
             states.clear();
