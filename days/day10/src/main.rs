@@ -1,4 +1,7 @@
+use std::sync::atomic::AtomicUsize;
+
 use helpers::*;
+use rayon::prelude::*;
 
 fn main() {
     use solver_interface::ChildSolverExt;
@@ -9,22 +12,17 @@ struct Solver;
 
 impl solver_interface::ChildSolver for Solver {
     fn part_one(input: &[u8], _debug: u8) -> impl Display + 'static {
-        let mut presses = 0;
-        let mut v1 = Vec::new();
-        let mut v2 = Vec::new();
-        lines(input, |machine| {
-            presses += machine.enable_machine(&mut v1, &mut v2)
-        });
-        presses
+        lines(input, |machine| machine.enable_machine())
     }
 
-    fn part_two(_input: &[u8], _debug: u8) -> impl Display + 'static {
-        "unimplemented"
+    fn part_two(input: &[u8], _debug: u8) -> impl Display + 'static {
+        lines(input, |machine| machine.configure_joltage())
     }
 }
 
-fn lines(input: &[u8], mut f: impl FnMut(Machine)) {
+fn lines(input: &[u8], f: impl Fn(Machine) -> u32 + Send + Sync) -> u32 {
     let mut input = Consume::new(input);
+    let mut machines = Vec::new();
     while !input.is_empty() {
         assert!(input.byte(b'['));
         let mut lights = 0;
@@ -69,79 +67,120 @@ fn lines(input: &[u8], mut f: impl FnMut(Machine)) {
         }
 
         assert!(input.newline());
-        f(Machine {
+        machines.push(Machine {
             lights,
             buttons,
             joltages,
         });
     }
+    let progress = AtomicUsize::new(0);
+    let total = machines.len();
+    machines
+        .into_par_iter()
+        .enumerate()
+        .map(|(i, machine)| {
+            let buttons = machine.buttons.len();
+            let presses = f(machine);
+            let current = progress.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            eprintln!("done with {i} ({buttons} buttons) ({current}/{total})");
+            presses
+        })
+        .sum()
 }
 
 const MAX_BUTTONS: usize = 14;
+const MAX_JOLTAGES: usize = 10;
 
 #[allow(dead_code)]
 #[derive(Clone)]
 struct Machine {
     lights: StateInt,
     buttons: ArrayVec<StateInt, MAX_BUTTONS>,
-    joltages: ArrayVec<u16, 10>,
+    joltages: ArrayVec<u16, MAX_JOLTAGES>,
 }
 
 type StateInt = u16;
+type ButtonInt = u16;
 
-struct State {
-    lights: StateInt,
-    used: u8,
-}
-impl State {
-    fn new(lights: StateInt, used: u8) -> Self {
-        Self { lights, used }
+impl Machine {
+    fn enable_machine(self) -> u32 {
+        let mut min_enabled = u32::MAX;
+        let end: ButtonInt = (1 << self.buttons.len()) - 1;
+        for button_mask in 0..end {
+            let lights = self.push_buttons(button_mask);
+            if self.lights == lights {
+                min_enabled = min_enabled.min(button_mask.count_ones());
+            }
+        }
+
+        min_enabled
+    }
+
+    fn push_buttons(&self, mut button_mask: u16) -> u16 {
+        let mut lights = 0;
+        for &button in &self.buttons {
+            if button_mask.is_odd() {
+                lights ^= button;
+            }
+            button_mask /= 2;
+        }
+        lights
+    }
+
+    fn configure_joltage(self) -> u32 {
+        min_presses(
+            &mut self
+                .joltages
+                .iter()
+                .map(|&j| j as i16)
+                .collect::<ArrayVec<_, MAX_JOLTAGES>>(),
+            &self.buttons,
+        )
+        .unwrap()
     }
 }
 
-impl Machine {
-    fn enable_machine<'a>(
-        self,
-        mut states: &'a mut Vec<State>,
-        mut states_tmp: &'a mut Vec<State>,
-    ) -> usize {
-        states.clear();
-        states_tmp.clear();
-        states.push(State::new(self.lights, 0));
-        // eprintln!("{self:?}");
-        // return 0;
-        for presses in 1.. {
-            for &State { lights, used } in &*states {
-                for (i, &button) in self.buttons.iter().enumerate() {
-                    if i as u8 == used {
-                        continue;
-                    }
-                    let new_lights = press_button(lights, button);
-                    // eprintln!(
-                    //     "apply {:?} to {:?} = {:?}",
-                    //     StatePrinter(button),
-                    //     StatePrinter(lights),
-                    //     StatePrinter(new_lights),
-                    // );
-                    if new_lights == 0 {
-                        // eprintln!("  {presses}");
-                        return presses;
-                    }
-                    states_tmp.push(State::new(new_lights, i as u8));
-                }
-            }
-            states.clear();
-            swap(&mut states, &mut states_tmp);
-
-            if states.is_empty() {
-                panic!("no states left");
-            }
-            // eprintln!(
-            //     "{:?}",
-            //     states.iter().map(|&(s, _)| StatePrinter(s)).collect_vec()
-            // );
+fn min_presses(joltages: &mut [i16], buttons: &[u16]) -> Option<u32> {
+    let Some((&button, rest_buttons)) = buttons.split_first() else {
+        if joltages.iter().all(|&j| j == 0) {
+            return Some(0);
+        } else {
+            return None;
         }
-        unreachable!();
+    };
+    let mut best_presses = None;
+    for presses in 0.. {
+        if joltages.iter().any(|j| j.is_negative()) {
+            unjolt(joltages, button, presses);
+            break;
+        }
+        if let Some(later) = min_presses(joltages, rest_buttons) {
+            best_presses = Some(
+                best_presses
+                    .unwrap_or_else(|| presses + later)
+                    .min(presses + later),
+            );
+        };
+        jolt(joltages, button);
+    }
+    best_presses
+}
+
+fn jolt(joltages: &mut [i16], mut button: u16) {
+    for j in joltages.iter_mut().rev() {
+        if button.is_odd() {
+            *j -= 1;
+        }
+        button /= 2;
+    }
+}
+
+fn unjolt(joltages: &mut [i16], mut button: u16, presses: u32) {
+    for j in joltages.iter_mut().rev() {
+        if button.is_odd() {
+            *j += presses as i16;
+        }
+        button /= 2;
     }
 }
 
@@ -168,8 +207,4 @@ impl Debug for StatePrinter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:b}", self.0)
     }
-}
-
-fn press_button(state: StateInt, button: StateInt) -> StateInt {
-    state ^ button
 }
