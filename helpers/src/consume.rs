@@ -183,6 +183,19 @@ impl<'a> Consume<'a> {
         start
     }
 
+    /// Advances the slice `count` bytes and returns an array. If the slice is
+    /// shorter, returns `None`.
+    ///
+    /// Returns the consumed portion.
+    pub fn consume_array<const N: usize>(&mut self) -> Option<[u8; N]> {
+        if self.len() < N {
+            return None;
+        }
+        let (start, end) = self.slice.split_at(N);
+        self.slice = BStr::new(end);
+        start.try_into().ok()
+    }
+
     /// If the slice is not empty, consumes one byte.
     pub fn consume_byte(&mut self) -> Option<u8> {
         let mut slice = self.slice();

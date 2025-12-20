@@ -26,7 +26,7 @@ pub use petgraph;
 pub use primal::*;
 pub use rand::{self, Rng};
 pub use regex::bytes::Regex;
-pub use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+pub use rustc_hash::{FxBuildHasher, FxHashMap as HashMap, FxHashSet as HashSet, FxHasher};
 
 mod unwrap_display;
 pub use unwrap_display::*;
