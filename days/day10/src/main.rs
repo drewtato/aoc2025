@@ -1,14 +1,16 @@
 use helpers::*;
+use z3::Optimize;
+use z3::ast::Int;
 // use rayon::prelude::*;
 
 fn main() {
     use solver_interface::ChildSolverExt;
-    Solver::run().unwrap_display();
+    SolverAoc::run().unwrap_display();
 }
 
-struct Solver;
+struct SolverAoc;
 
-impl solver_interface::ChildSolver for Solver {
+impl solver_interface::ChildSolver for SolverAoc {
     fn part_one(input: &[u8], _debug: u8) -> impl Display + 'static {
         lines(input, |machine| machine.enable_machine())
     }
@@ -118,143 +120,62 @@ impl Machine {
     }
 
     fn configure_joltage(self) -> u32 {
-        macro_rules! specific {
-            ($($n:literal),* $(,)?) => {
-                match self.joltages.len() {
-                    $(
-                        $n => SpecificLengthMachine::<$n>::try_from(self)
-                            .unwrap()
-                            .configure_joltage(),
-                    )*
-                    n => panic!("please add length {n} to the match"),
-                }
-            };
-        }
-        specific!(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-    }
-}
+        let solver = Optimize::new();
+        let buttons_decomposed: ArrayVec<_, MAX_BUTTONS> = self
+            .buttons
+            .into_iter()
+            .enumerate()
+            .map(|(variable, mut b)| {
+                let mut button: ArrayVec<bool, MAX_JOLTAGES> = fn_iter(|| {
+                    let a = b.is_odd();
+                    b /= 2;
+                    Some(a)
+                })
+                .collect();
+                button.reverse();
+                (button, Int::fresh_const(&format!("button{variable}")))
+            })
+            .collect();
 
-#[derive(Debug, Clone)]
-struct SpecificLengthMachine<const N: usize> {
-    buttons: ArrayVec<ButtonInt, MAX_BUTTONS>,
-    joltages: [u16; N],
-}
-
-impl<const N: usize> TryFrom<Machine> for SpecificLengthMachine<N> {
-    type Error = &'static str;
-
-    fn try_from(machine: Machine) -> Result<Self, Self::Error> {
-        Ok(Self {
-            buttons: machine.buttons,
-            joltages: *machine
-                .joltages
-                .as_array()
-                .ok_or("wrong number of joltages")?,
-        })
-    }
-}
-
-#[derive(Debug)]
-struct State<const N: usize> {
-    heuristic_and_cost: u16,
-    cost: u16,
-    node: [u16; N],
-    last_button: u16,
-}
-
-impl<const N: usize> PartialEq for State<N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.heuristic_and_cost == other.heuristic_and_cost
-    }
-}
-
-impl<const N: usize> Eq for State<N> {}
-
-impl<const N: usize> PartialOrd for State<N> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<const N: usize> Ord for State<N> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.heuristic_and_cost.cmp(&other.heuristic_and_cost)
-    }
-}
-
-impl<const N: usize> SpecificLengthMachine<N> {
-    fn configure_joltage(self) -> u32 {
-        let mut queue = BinaryHeap::new_min();
-        let start = [0; N];
-        let cost = 0;
-        let heuristic = self.max_joltage_diff(start).unwrap();
-        queue.push(State {
-            heuristic_and_cost: heuristic + cost,
-            cost,
-            node: start,
-            last_button: 0,
-        });
-        let mut seen = HashSet::default();
-        seen.insert(start);
-
-        while let Some(State {
-            heuristic_and_cost,
-            cost,
-            node,
-            last_button,
-        }) = queue.pop()
-        {
-            seen.insert(node);
-            let new_cost = cost + 1;
-            let next_button = last_button as usize + 1;
-            if next_button < self.buttons.len() {
-                queue.push(State {
-                    heuristic_and_cost,
-                    cost,
-                    node,
-                    last_button: next_button as _,
-                });
-            }
-            let button = self.buttons[last_button as usize];
-            let new_node = jolt(node, button);
-            let Some(heuristic) = self.max_joltage_diff(new_node) else {
-                continue;
-            };
-            if heuristic == 0 {
-                return new_cost as _;
-            }
-            if seen.contains(&new_node) {
-                continue;
-            }
-            queue.push(State {
-                heuristic_and_cost: heuristic + cost,
-                cost: new_cost,
-                node: new_node,
-                last_button,
-            });
+        let button_presses = buttons_decomposed
+            .iter()
+            .map(|(_, a)| a.clone())
+            .reduce(|a, b| a + b)
+            .unwrap();
+        solver.minimize(&button_presses);
+        for (_, b) in &buttons_decomposed {
+            solver.assert(&b.ge(0));
         }
 
-        panic!("no path");
-    }
-
-    fn max_joltage_diff(&self, node: [u16; N]) -> Option<u16> {
-        let mut max = 0;
-        for (goal, n) in self.joltages.into_iter().zip(node) {
-            let diff = goal.checked_sub(n)?;
-            max = max.max(diff);
+        for (i, j) in self.joltages.into_iter().enumerate() {
+            let lhs = buttons_decomposed
+                .iter()
+                .fold(
+                    Int::from_u64(0),
+                    |int, (b_arr, b_int)| {
+                        if b_arr[i] { int + b_int } else { int }
+                    },
+                );
+            solver.assert(&lhs.eq(j));
         }
-        Some(max)
-    }
-}
 
-fn jolt<const N: usize>(mut node: [u16; N], mut button: u16) -> [u16; N] {
-    for n in node.iter_mut().rev() {
-        if button.is_odd() {
-            *n += 1;
+        solver.check(&[]);
+        let model = solver.get_model().unwrap();
+        let mut sum = 0;
+        for (_, button) in buttons_decomposed {
+            let value = model
+                .eval(&button, false)
+                .expect("model failed")
+                .as_u64()
+                .expect("wasn't a u64");
+            // eprintln!("  {value}");
+            sum += value as u32;
         }
-        button /= 2;
+
+        // eprintln!("{sum}");
+
+        sum
     }
-    node
 }
 
 impl Debug for Machine {

@@ -9,3 +9,4 @@ version = "0.1.0"
 helpers.workspace = true
 solver-interface.workspace = true
 rayon.workspace = true
+z3.workspace = true

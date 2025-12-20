@@ -40,6 +40,7 @@ regex = "1.11.1"
 rustc-hash = "2.0.0"
 solver-interface = { path = "solver-interface" }
 thiserror = "2.0.3"
+z3 = { version = "0.19.6", features = ["bundled"] }
 
 [lints.clippy]
 large_stack_arrays = "warn"
