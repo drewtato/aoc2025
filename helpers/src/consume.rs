@@ -215,6 +215,18 @@ impl<'a> Consume<'a> {
     pub fn is_empty(&self) -> bool {
         self.slice.is_empty()
     }
+
+    /// Panics if the next byte is not `byte`.
+    #[track_caller]
+    pub fn assert_byte(&mut self, byte: u8) {
+        if let Some(next) = self.consume_byte() {
+            if next != byte {
+                panic!("expected {:?}, but found {:?}", byte as char, next as char);
+            }
+        } else {
+            panic!("expected {:?}, but no bytes were left", byte as char)
+        }
+    }
 }
 
 /// Parses all numbers in a slice into a 2D `Vec`.
